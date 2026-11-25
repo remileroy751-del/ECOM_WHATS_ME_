@@ -5,6 +5,11 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,7 +25,23 @@ jobs:
         with:
           gradle-version: 8.7
 
+      # La clé de signature n'est jamais stockée dans le dépôt : elle est reconstruite
+      # ici à partir du secret KEYSTORE_BASE64 (voir README > "Clé de signature").
+      - name: Reconstruire la clé de signature
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "Secret KEYSTORE_BASE64 manquant — voir le README."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > app/ecom.keystore
+
       - name: Build release APK (signé)
+        env:
+          KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
+          KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
+          KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
         run: gradle assembleRelease --no-daemon
 
       - uses: actions/upload-artifact@v4
@@ -31,19 +52,14 @@ jobs:
   deploy-admin:
     needs: build
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-
-      # Le dépôt principal est privé (il contient la clé de signature) : GitHub Pages
-      # via Actions n'y fonctionne pas sur un compte gratuit. La page admin est donc
-      # publiée vers un DEUXIÈME dépôt, public et sans aucun secret, dédié à ça.
-      # Étapes une seule fois : voir le README > "Interface admin / GitHub Pages".
-      - name: Publier admin/ vers le dépôt public dédié
-        if: ${{ secrets.ADMIN_PAGES_TOKEN != '' }}
-        uses: peaceiris/actions-gh-pages@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
         with:
-          personal_token: ${{ secrets.ADMIN_PAGES_TOKEN }}
-          external_repository: ${{ secrets.ADMIN_PAGES_REPO }}
-          publish_branch: gh-pages
-          publish_dir: ./admin
-          force_orphan: true
+          path: admin
+      - id: deployment
+        uses: actions/deploy-pages@v4
