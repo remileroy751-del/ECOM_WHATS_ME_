@@ -1,0 +1,49 @@
+name: Build APK + Deploy Admin
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+
+      - name: Build release APK (signé)
+        run: gradle assembleRelease --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EcomWhatsMe-apk
+          path: app/build/outputs/apk/release/*.apk
+
+  deploy-admin:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Le dépôt principal est privé (il contient la clé de signature) : GitHub Pages
+      # via Actions n'y fonctionne pas sur un compte gratuit. La page admin est donc
+      # publiée vers un DEUXIÈME dépôt, public et sans aucun secret, dédié à ça.
+      # Étapes une seule fois : voir le README > "Interface admin / GitHub Pages".
+      - name: Publier admin/ vers le dépôt public dédié
+        if: ${{ secrets.ADMIN_PAGES_TOKEN != '' }}
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.ADMIN_PAGES_TOKEN }}
+          external_repository: ${{ secrets.ADMIN_PAGES_REPO }}
+          publish_branch: gh-pages
+          publish_dir: ./admin
+          force_orphan: true
