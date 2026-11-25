@@ -54,6 +54,9 @@ class NotifService : NotificationListenerService() {
         val pkg = sbn.packageName
         if (pkg != "com.whatsapp" && pkg != "com.whatsapp.w4b") return
         val app = if (pkg == "com.whatsapp.w4b") "biz" else "wa"
+        // Diagnostic : prouve que le service reçoit bien des notifications WhatsApp,
+        // indépendamment de ce qui est ensuite enregistré ou non (visible dans Paramètres avancés).
+        Prefs.setLastNotifSeen(this, System.currentTimeMillis())
         val n = sbn.notification
         if (n.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
         val ex = n.extras

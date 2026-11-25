@@ -115,6 +115,7 @@ class MediaWatcher(private val ctx: Context) {
                 else -> "photo"
             }
             Db.get(ctx).linkMedia(app, kind, name, f.lastModified())
+            Prefs.setLastMediaSeen(ctx, System.currentTimeMillis())
 
             val prev = prefs.getLong("last", 0L)
             if (f.lastModified() > prev) prefs.edit().putLong("last", f.lastModified()).apply()

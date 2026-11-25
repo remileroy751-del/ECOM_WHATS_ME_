@@ -90,6 +90,33 @@ class SettingsActivity : Activity() {
             addView(row)
         })
 
+        // ---- diagnostic : le service tourne-t-il vraiment en arrière-plan ? ----
+        body.addView(sectionCard {
+            addView(label("🩺 Diagnostic", 15f, Pal.TEXT, true))
+            addView(diagLine("Accès notifications", Perms.notif(this@SettingsActivity)))
+            addView(diagLine("Accès fichiers", Perms.files(this@SettingsActivity)))
+            addView(diagLine("Arrière-plan autorisé", Perms.battery(this@SettingsActivity)))
+            addView(label(agoLabel("Dernière notification WhatsApp reçue", Prefs.lastNotifSeen(this@SettingsActivity)), 12f, Pal.MUTED).apply {
+                setPadding(0, dp(10), 0, 0)
+            })
+            addView(label(agoLabel("Dernier média enregistré", Prefs.lastMediaSeen(this@SettingsActivity)), 12f, Pal.MUTED).apply {
+                setPadding(0, dp(4), 0, 0)
+            })
+            addView(
+                label(
+                    "Si « Dernière notification WhatsApp reçue » reste à « jamais » alors que vous recevez " +
+                        "des messages, cherchez dans les réglages de votre téléphone une option comme " +
+                        "« Démarrage automatique », « Apps protégées » ou « Gestion de la batterie » " +
+                        "(fréquent sur Xiaomi, Huawei, Oppo, Vivo, Samsung) et autorisez Ecom Whats Me.",
+                    12f, Pal.WARN
+                ).apply {
+                    setPadding(dp(10), dp(10), dp(10), dp(10))
+                    background = rounded(Pal.WARN_BG, 10)
+                    layoutParams = lp(MATCH, WRAP).apply { setMargins(0, dp(12), 0, 0) }
+                }
+            )
+        })
+
         // ---- identifiant de l'appareil (utile pour le support / prolongation de licence) ----
         body.addView(sectionCard {
             addView(label("Identifiant de l'appareil", 15f, Pal.TEXT, true))
@@ -132,6 +159,26 @@ class SettingsActivity : Activity() {
         root.addView(ScrollView(this).apply { addView(body) }, lp(MATCH, 0, 1f))
         root.addView(footer())
         setContentView(root)
+    }
+
+    private fun diagLine(name: String, ok: Boolean): LinearLayout =
+        LinearLayout(this).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = lp(MATCH, WRAP).apply { setMargins(0, dp(8), 0, 0) }
+            addView(label(if (ok) "✅" else "❌", 14f), lp(dp(26), WRAP))
+            addView(label(name, 13f, Pal.TEXT))
+        }
+
+    private fun agoLabel(prefix: String, time: Long): String {
+        if (time <= 0L) return "$prefix : jamais"
+        val mins = (System.currentTimeMillis() - time) / 60000
+        val txt = when {
+            mins < 1 -> "à l'instant"
+            mins < 60 -> "il y a ${mins} min"
+            mins < 1440 -> "il y a ${mins / 60} h"
+            else -> "il y a ${mins / 1440} j"
+        }
+        return "$prefix : $txt"
     }
 
     private fun sectionCard(fill: LinearLayout.() -> Unit): LinearLayout =

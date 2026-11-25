@@ -66,4 +66,10 @@ object Prefs {
     fun setAutoClean(c: Context, v: Boolean) { p(c).edit().putBoolean("auto_clean", v).apply() }
     fun lastCleanTime(c: Context): Long = p(c).getLong("last_clean", installTime(c))
     fun setLastCleanTime(c: Context, v: Long) { p(c).edit().putLong("last_clean", v).apply() }
+
+    // ---- diagnostic : pour vérifier que le service tourne vraiment en arrière-plan ----
+    fun lastNotifSeen(c: Context): Long = p(c).getLong("last_notif_seen", 0L)
+    fun setLastNotifSeen(c: Context, v: Long) { p(c).edit().putLong("last_notif_seen", v).apply() }
+    fun lastMediaSeen(c: Context): Long = p(c).getLong("last_media_seen", 0L)
+    fun setLastMediaSeen(c: Context, v: Long) { p(c).edit().putLong("last_media_seen", v).apply() }
 }
