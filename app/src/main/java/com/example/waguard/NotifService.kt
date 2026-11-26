@@ -2,6 +2,9 @@ package com.example.waguard
 
 import android.app.Notification
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.content.ComponentName
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 
@@ -17,20 +20,52 @@ class NotifService : NotificationListenerService() {
     }
 
     private var watcher: MediaWatcher? = null
+    private val recoveryHandler = Handler(Looper.getMainLooper())
+    private val recoveryAttempts = listOf(1_000L, 5_000L, 15_000L)
+
+    private val recoveryRunnable = object : Runnable {
+        override fun run() {
+            if (instance != null) return
+            try {
+                NotificationListenerService.requestRebind(
+                    ComponentName(applicationContext, NotifService::class.java)
+                )
+            } catch (_: Exception) { }
+        }
+    }
 
     override fun onListenerConnected() {
         instance = this
+        recoveryHandler.removeCallbacksAndMessages(null)
         startWatcher()
     }
 
     override fun onListenerDisconnected() {
         watcher?.stop()
         instance = null
+        // Android recommande explicitement requestRebind après une déconnexion
+        // du NotificationListenerService. Plusieurs tentatives couvrent les
+        // redémarrages momentanément retardés par le système.
+        recoveryAttempts.forEach { delay ->
+            recoveryHandler.postDelayed(recoveryRunnable, delay)
+        }
     }
 
+    @Synchronized
     fun startWatcher() {
         if (watcher == null) watcher = MediaWatcher(applicationContext)
         watcher?.start()
+    }
+
+    /** Relance l'écoute et la surveillance après une reconnexion ou depuis le bouton Actualiser. */
+    fun refreshProtection() {
+        recoveryHandler.removeCallbacksAndMessages(null)
+        try {
+            NotificationListenerService.requestRebind(
+                ComponentName(applicationContext, NotifService::class.java)
+            )
+        } catch (_: Exception) { }
+        startWatcher()
     }
 
     private fun isDeleted(t: String): Boolean {

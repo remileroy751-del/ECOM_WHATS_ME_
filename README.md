@@ -51,3 +51,12 @@ dans Supabase > Authentication > Users (email + mot de passe), puis ajoute son e
 ## Boutique des clés
 - Clé 30 jours (9 caractères, ex `jY8k 4Asx`) : https://wldadmwl.mychariow.shop/prd_hv0ptlrs
 - Clé 90 jours (12 caractères, ex `Hg78kB32S4xP`) : https://wldadmwl.mychariow.shop/prd_t34vacc7
+
+
+## Récupération automatique après une coupure réseau
+
+La protection utilise désormais le réseau par défaut validé par Android pour relancer le rattachement du `NotificationListenerService`. Si Android déconnecte ce service, celui-ci demande aussi son propre rattachement avec plusieurs tentatives différées. Le bouton **Actualiser la protection** de l'écran d'accueil déclenche manuellement la même récupération.
+
+La surveillance des médias conserve maintenant correctement la date du dernier scan lorsqu'elle est arrêtée, afin que les fichiers apparus pendant une interruption puissent être recherchés au redémarrage de la surveillance.
+
+À noter : Android peut toujours suspendre ou révoquer un service si l'utilisateur force l'arrêt de l'application ou désactive l'accès aux notifications. Dans ce cas, il faut rouvrir l'application et réautoriser cet accès dans les paramètres Android.

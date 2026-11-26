@@ -10,7 +10,7 @@ import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
-import android.net.NetworkRequest
+import android.os.SystemClock
 import android.os.Build
 import android.os.IBinder
 import android.service.notification.NotificationListenerService
@@ -28,6 +28,7 @@ class GuardService : Service() {
 
     private lateinit var cm: ConnectivityManager
     private var callback: ConnectivityManager.NetworkCallback? = null
+    @Volatile private var lastRecoveryAt = 0L
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -35,31 +36,38 @@ class GuardService : Service() {
         super.onCreate()
         startForegroundSafely()
         cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
         callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                // Le réseau vient de revenir (ou l'app vient de démarrer avec un réseau déjà là) :
-                // on force le système à rebrancher l'écoute des notifications, au cas où elle
-                // aurait été coupée pendant la panne, puis on relance la surveillance des médias.
-                rebind()
+                // onCapabilitiesChanged confirme ensuite que le réseau est réellement utilisable.
+                val caps = cm.getNetworkCapabilities(network)
+                if (caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true) rebind()
+            }
+
+            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                if (caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                    caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) rebind()
             }
         }
-        cm.registerNetworkCallback(request, callback!!)
+        // Le réseau par défaut est celui effectivement utilisé par les applications.
+        cm.registerDefaultNetworkCallback(callback!!)
         // sécurité supplémentaire : un rebranchement immédiat au démarrage du service aussi.
         rebind()
     }
 
+    @Synchronized
     private fun rebind() {
+        // Évite les appels répétés lors des changements de capacités d'un même réseau.
+        val now = SystemClock.elapsedRealtime()
+        if (lastRecoveryAt != 0L && now - lastRecoveryAt < 3_000L) return
+        lastRecoveryAt = now
         try {
             NotificationListenerService.requestRebind(ComponentName(this, NotifService::class.java))
-        } catch (_: Exception) {
-        }
-        NotifService.instance?.startWatcher()
+        } catch (_: Exception) { }
+        NotifService.instance?.refreshProtection()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        lastRecoveryAt = 0L
         rebind()
         return START_STICKY
     }
@@ -95,6 +103,13 @@ class GuardService : Service() {
         fun start(c: Context) {
             val i = Intent(c, GuardService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) c.startForegroundService(i) else c.startService(i)
+        }
+
+        fun refresh(c: Context) {
+            try { NotificationListenerService.requestRebind(ComponentName(c, NotifService::class.java)) }
+            catch (_: Exception) { }
+            start(c)
+            NotifService.instance?.refreshProtection()
         }
     }
 }
