@@ -96,6 +96,14 @@ class SettingsActivity : Activity() {
             addView(diagLine("Accès notifications", Perms.notif(this@SettingsActivity)))
             addView(diagLine("Accès fichiers", Perms.files(this@SettingsActivity)))
             addView(diagLine("Arrière-plan autorisé", Perms.battery(this@SettingsActivity)))
+            addView(
+                label(
+                    "Depuis cette mise à jour, une petite notification discrète « Protection active » " +
+                        "reste affichée en permanence : c'est normal, elle empêche le système de couper " +
+                        "l'archivage après une coupure internet ou une longue mise en veille.",
+                    12f, Pal.MUTED
+                ).apply { setPadding(0, dp(10), 0, 0) }
+            )
             addView(label(agoLabel("Dernière notification WhatsApp reçue", Prefs.lastNotifSeen(this@SettingsActivity)), 12f, Pal.MUTED).apply {
                 setPadding(0, dp(10), 0, 0)
             })

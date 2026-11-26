@@ -39,9 +39,14 @@ Après le prochain push, la page admin sera disponible à l'adresse indiquée da
 (généralement `https://tonpseudo.github.io/nom-du-depot/`).
 
 ## Base de données
-Exécute une seule fois le SQL fourni dans Supabase (SQL Editor > Run). Il crée les tables, verrouille
-l'accès direct, et ne laisse passer que les fonctions RPC utilisées par l'application et par `admin/index.html`.
-Pense à changer le mot de passe admin par défaut dans ce script avant de l'exécuter.
+- Nouvelle base, jamais initialisée : exécute `supabase/schema.sql` puis `supabase/migrate_to_auth.sql`.
+- Base déjà initialisée avec l'ancien système (mot de passe admin) : exécute seulement
+  `supabase/migrate_to_auth.sql`.
+
+L'accès admin passe maintenant par le vrai système d'authentification de Supabase : crée ton compte
+dans Supabase > Authentication > Users (email + mot de passe), puis ajoute son email dans la table
+`admin_users` (déjà fait pour `tyros.petros@gmail.com` dans le script de migration). Connecte-toi sur
+`admin/index.html` avec cet email et ce mot de passe.
 
 ## Boutique des clés
 - Clé 30 jours (9 caractères, ex `jY8k 4Asx`) : https://wldadmwl.mychariow.shop/prd_hv0ptlrs

@@ -13,7 +13,7 @@ android {
         targetSdk = 34
         // le numéro de version augmente automatiquement à chaque compilation GitHub
         versionCode = 100 + (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
-        versionName = "3.0"
+        versionName = "4.0"
     }
 
     // Clé de signature FIXE : toutes les versions sont signées pareil,

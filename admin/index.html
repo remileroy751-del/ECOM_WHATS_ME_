@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Ecom Whats Me — Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <style>
   :root{
     --bg:#F1F6F4; --dark:#0A1F1C; --dark2:#0F4A41; --accent:#25D39A; --accent-d:#0E8F69;
@@ -26,13 +27,12 @@
   .card{background:var(--white);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:16px;}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
   input,textarea,button,select{font:inherit;}
-  input[type=password],input[type=text]{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--border);
-    background:var(--bg);color:var(--text);}
+  input[type=password],input[type=text],input[type=email]{width:100%;padding:12px 14px;border-radius:12px;
+    border:1px solid var(--border);background:var(--bg);color:var(--text);}
   textarea{width:100%;min-height:160px;padding:12px 14px;border-radius:12px;border:1px solid var(--border);
     background:var(--bg);color:var(--text);font-family:monospace;font-size:13px;}
   button{cursor:pointer;border:none;border-radius:12px;padding:11px 18px;font-weight:600;background:var(--accent);color:var(--dark);}
   button.secondary{background:transparent;border:1px solid var(--border);color:var(--text);}
-  button.danger{background:var(--danger-bg);color:var(--danger);}
   button:disabled{opacity:.5;cursor:not-allowed;}
   .tabs{display:flex;gap:8px;margin-bottom:14px;}
   .tab{padding:9px 16px;border-radius:20px;border:1px solid var(--border);cursor:pointer;font-size:13px;font-weight:600;}
@@ -48,6 +48,7 @@
   .msg.ok{background:#DCF6E6;color:#0E7A3F;}
   .msg.err{background:var(--danger-bg);color:var(--danger);}
   .foot{text-align:center;color:var(--muted);font-size:12px;padding:26px 0 36px;}
+  label.f{display:block;font-size:13px;font-weight:600;margin:10px 0 6px;}
 </style>
 </head>
 <body>
@@ -55,9 +56,12 @@
 <div id="login" class="wrap" style="max-width:420px;padding-top:60px;">
   <div class="card">
     <h2 style="margin-top:0;">🔐 Ecom Whats Me — Admin</h2>
-    <p class="muted">Entrez le mot de passe admin défini dans Supabase (table <code>admin_settings</code>).</p>
-    <input id="pwd" type="password" placeholder="Mot de passe admin">
-    <div style="height:10px;"></div>
+    <p class="muted">Connecte-toi avec le compte administrateur créé dans Supabase &gt; Authentication &gt; Users.</p>
+    <label class="f">Email</label>
+    <input id="email" type="email" placeholder="ton.email@exemple.com" autocomplete="username">
+    <label class="f">Mot de passe</label>
+    <input id="pwd" type="password" placeholder="Mot de passe" autocomplete="current-password">
+    <div style="height:14px;"></div>
     <button style="width:100%" onclick="login()">Se connecter</button>
     <div id="loginMsg"></div>
   </div>
@@ -121,49 +125,37 @@
 <script>
 const SUPA_URL = "https://dcxfshorvdaypqyugeil.supabase.co";
 const SUPA_KEY = "sb_publishable_YsEsTvgdcnLBFzfxsOm0eg_Nmvt5lYY";
-let password = "";
+const client = supabase.createClient(SUPA_URL, SUPA_KEY);
 let currentType = "30";
 
-async function rpc(fn, body){
-  const r = await fetch(`${SUPA_URL}/rest/v1/rpc/${fn}`, {
-    method: "POST",
-    headers: {
-      "apikey": SUPA_KEY,
-      "Authorization": `Bearer ${SUPA_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(body)
-  });
-  const text = await r.text();
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch(e){ data = text; }
-  if (!r.ok) throw new Error((data && data.message) || "Erreur serveur");
+async function rpc(fn, args = {}){
+  const { data, error } = await client.rpc(fn, args);
+  if (error) throw new Error(error.message || "Erreur serveur");
   return data;
 }
 
 async function login(){
-  const p = document.getElementById("pwd").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const pwd = document.getElementById("pwd").value;
   const msg = document.getElementById("loginMsg");
-  if (!p){ return; }
-  msg.innerHTML = `<div class="msg">Vérification…</div>`;
-  try {
-    const ok = await rpc("admin_check", { p_password: p });
-    if (ok){
-      password = p;
-      sessionStorage.setItem("ewm_admin_pwd", p);
-      document.getElementById("login").classList.add("hidden");
-      document.getElementById("app").classList.remove("hidden");
-      loadStats();
-    } else {
-      msg.innerHTML = `<div class="msg err">Mot de passe incorrect.</div>`;
-    }
-  } catch(e){
-    msg.innerHTML = `<div class="msg err">Connexion impossible : ${e.message}</div>`;
+  if (!email || !pwd) return;
+  msg.innerHTML = `<div class="msg">Connexion…</div>`;
+  const { error } = await client.auth.signInWithPassword({ email, password: pwd });
+  if (error){
+    msg.innerHTML = `<div class="msg err">${error.message}</div>`;
+    return;
   }
+  showApp();
 }
 
-function logout(){
-  sessionStorage.removeItem("ewm_admin_pwd");
+function showApp(){
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  loadStats();
+}
+
+async function logout(){
+  await client.auth.signOut();
   location.reload();
 }
 
@@ -191,7 +183,7 @@ async function importKeys(){
   if (codes.length === 0){ msg.innerHTML = `<div class="msg err">Aucune clé détectée.</div>`; return; }
   msg.innerHTML = `<div class="msg">Import de ${codes.length} clé(s)…</div>`;
   try {
-    const n = await rpc("admin_import_keys", { p_password: password, p_type: currentType, p_codes: codes });
+    const n = await rpc("admin_import_keys", { p_type: currentType, p_codes: codes });
     msg.innerHTML = `<div class="msg ok">${n} clé(s) ajoutée(s) (les doublons ont été ignorés).</div>`;
     document.getElementById("keysArea").value = "";
     loadStats();
@@ -206,7 +198,7 @@ async function extend(days){
   if (!dev){ msg.innerHTML = `<div class="msg err">Indique l'identifiant de l'appareil.</div>`; return; }
   msg.innerHTML = `<div class="msg">Mise à jour…</div>`;
   try {
-    const res = await rpc("admin_extend", { p_password: password, p_device_id: dev, p_days: days });
+    const res = await rpc("admin_extend", { p_device_id: dev, p_days: days });
     msg.innerHTML = `<div class="msg ok">Licence prolongée jusqu'au ${new Date(res.expires_at).toLocaleString()}.</div>`;
   } catch(e){
     msg.innerHTML = `<div class="msg err">Échec : ${e.message}</div>`;
@@ -215,7 +207,7 @@ async function extend(days){
 
 async function loadStats(){
   try {
-    const s = await rpc("admin_stats", { p_password: password });
+    const s = await rpc("admin_stats");
     document.getElementById("statsRow").innerHTML = `
       <div class="stat"><b>${s.total_installs}</b><span>Installations totales</span></div>
       <div class="stat"><b>${s.active_licenses}</b><span>Licences actives</span></div>
@@ -235,14 +227,11 @@ async function loadStats(){
   }
 }
 
-// reprise de session dans l'onglet (sessionStorage uniquement, jamais persistant)
-window.onload = () => {
-  const saved = sessionStorage.getItem("ewm_admin_pwd");
-  if (saved){
-    document.getElementById("pwd").value = saved;
-    login();
-  }
-};
+// reprise de session automatique si déjà connecté (gérée par supabase-js, via localStorage du navigateur)
+window.addEventListener("load", async () => {
+  const { data } = await client.auth.getSession();
+  if (data.session) showApp();
+});
 </script>
 </body>
 </html>

@@ -69,7 +69,10 @@ class MainActivity : Activity() {
             first == 2 && autoLaunched != 2 -> {
                 autoLaunched = 2; launchStep(2); showGate(ok)
             }
-            else -> showHome(batteryMissing = !ok[2])
+            else -> {
+                GuardService.start(this)
+                showHome(batteryMissing = !ok[2])
+            }
         }
     }
 
