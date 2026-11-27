@@ -35,6 +35,11 @@ class MainActivity : Activity() {
 
     private var autoLaunched = -1
 
+    companion object {
+        /** Un seul appel par lancement de l'app : évite de refaire la requête à chaque retour sur l'écran. */
+        private var trialSynced = false
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         darkStatusBar()
@@ -53,7 +58,21 @@ class MainActivity : Activity() {
         if (Prefs.lang(this).isEmpty() || Prefs.country(this).isEmpty()) return
         NotifService.instance?.startWatcher()
         Cleanup.runIfDue(this)
+        syncTrialOnce()
         render()
+    }
+
+    /** Verrouille le début d'essai côté serveur, pour qu'une désinstallation / réinstallation
+     * ne redonne pas un nouvel essai gratuit (voir Supa.registerTrial). */
+    private fun syncTrialOnce() {
+        if (trialSynced || Prefs.licenseActive(this)) return
+        trialSynced = true
+        Supa.registerTrial(Prefs.deviceId(this), Prefs.installTime(this)) { startedAt ->
+            if (startedAt != null && startedAt != Prefs.installTime(this)) {
+                Prefs.setInstallTime(this, startedAt)
+                render()
+            }
+        }
     }
 
     private fun t(k: String) = L.t(this, k)

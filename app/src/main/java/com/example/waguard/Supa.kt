@@ -69,6 +69,23 @@ object Supa {
         }
     }
 
+    /** Verrouille/relit le début d'essai côté serveur pour cet appareil. Callback (startedAtMillis ou null si échec). */
+    fun registerTrial(hardwareId: String, localHintMillis: Long, cb: (Long?) -> Unit) {
+        bg {
+            val result: Long? = try {
+                val hintIso = java.time.Instant.ofEpochMilli(localHintMillis).toString()
+                val r = rpc("register_trial", JSONObject().put("p_hardware_id", hardwareId).put("p_hint", hintIso))
+                val data = r.optJSONObject("data")
+                val startedAt = data?.optString("started_at")
+                if (startedAt.isNullOrBlank()) null
+                else java.time.OffsetDateTime.parse(startedAt).toInstant().toEpochMilli()
+            } catch (_: Exception) {
+                null
+            }
+            main.post { cb(result) }
+        }
+    }
+
     sealed class ClaimResult {
         data class Ok(val days: Int, val type: String) : ClaimResult()
         data class Err(val reasonKey: String) : ClaimResult()

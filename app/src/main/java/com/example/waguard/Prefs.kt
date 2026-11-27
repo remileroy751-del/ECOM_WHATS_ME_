@@ -1,6 +1,7 @@
 package com.example.waguard
 
 import android.content.Context
+import android.provider.Settings
 import java.util.UUID
 
 /** Toutes les données locales de l'app (hors messages/médias, qui sont dans Db.kt). */
@@ -9,12 +10,23 @@ object Prefs {
     private fun p(c: Context) = c.getSharedPreferences(F, Context.MODE_PRIVATE)
 
     // ---- identité de l'appareil ----
+    // Basée sur ANDROID_ID : contrairement à un identifiant généré aléatoirement, celui-ci
+    // survit à une désinstallation / réinstallation de l'app (il ne change qu'en cas de
+    // réinitialisation d'usine du téléphone). Ça empêche de relancer un essai gratuit en
+    // réinstallant, et ça permet à une licence déjà achetée de rester valable après
+    // réinstallation. Quelques appareils très anciens ou atypiques ne fournissent pas cet
+    // identifiant : dans ce cas rare, on retombe sur un identifiant aléatoire stocké localement.
     fun deviceId(c: Context): String {
+        try {
+            val androidId = Settings.Secure.getString(c.contentResolver, Settings.Secure.ANDROID_ID)
+            if (!androidId.isNullOrBlank() && androidId != "9774d56d682e549c") return androidId
+        } catch (_: Exception) {
+        }
         val sp = p(c)
-        var id = sp.getString("device_id", null)
+        var id = sp.getString("device_id_fallback", null)
         if (id == null) {
             id = UUID.randomUUID().toString()
-            sp.edit().putString("device_id", id).apply()
+            sp.edit().putString("device_id_fallback", id).apply()
         }
         return id
     }
@@ -38,6 +50,11 @@ object Prefs {
             sp.edit().putLong("install_time", t).apply()
         }
         return t
+    }
+
+    /** Aligne la date de début d'essai locale sur celle enregistrée côté serveur (voir Supa.registerTrial). */
+    fun setInstallTime(c: Context, millis: Long) {
+        p(c).edit().putLong("install_time", millis).apply()
     }
 
     fun trialDaysLeft(c: Context): Int {

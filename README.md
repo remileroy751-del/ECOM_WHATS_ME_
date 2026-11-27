@@ -38,6 +38,13 @@ Repo public requis (c'est le cas ici). Settings > Pages > Source = **GitHub Acti
 Après le prochain push, la page admin sera disponible à l'adresse indiquée dans l'onglet Pages
 (généralement `https://tonpseudo.github.io/nom-du-depot/`).
 
+## Verrouillage de l'essai gratuit
+Exécute une seule fois `supabase/trial_lock.sql`. À partir de cette version, l'identifiant d'appareil
+utilisé par l'app (pour l'essai gratuit ET pour les licences) est basé sur `ANDROID_ID`, stable à travers
+une désinstallation/réinstallation — contrairement à l'identifiant aléatoire utilisé avant. Ça empêche de
+relancer un essai gratuit en réinstallant, et ça permet à une licence déjà activée de rester valable après
+réinstallation. Seule une réinitialisation d'usine du téléphone change cet identifiant.
+
 ## Base de données
 - Nouvelle base, jamais initialisée : exécute `supabase/schema.sql` puis `supabase/migrate_to_auth.sql`.
 - Base déjà initialisée avec l'ancien système (mot de passe admin) : exécute seulement
