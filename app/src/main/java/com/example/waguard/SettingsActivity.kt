@@ -98,12 +98,18 @@ class SettingsActivity : Activity() {
             addView(diagLine("Arrière-plan autorisé", Perms.battery(this@SettingsActivity)))
             addView(
                 label(
-                    "Depuis cette mise à jour, une petite notification discrète « Protection active » " +
-                        "reste affichée en permanence : c'est normal, elle empêche le système de couper " +
-                        "l'archivage après une coupure internet ou une longue mise en veille.",
+                    "La protection se répare normalement toute seule (au retour d'internet, toutes les " +
+                        "2h, et à chaque redémarrage du téléphone). Si les dates ci-dessus restent " +
+                        "anciennes malgré de nouveaux messages reçus, appuie sur le bouton ci-dessous.",
                     12f, Pal.MUTED
-                ).apply { setPadding(0, dp(10), 0, 0) }
+                ).apply { setPadding(0, dp(10), 0, dp(10)) }
             )
+            addView(button("🔄 Réactualiser la protection maintenant", Pal.ACCENT, Pal.DARK, 0, 14f) {
+                Repair.runNow(this@SettingsActivity)
+                Repair.schedulePeriodic(this@SettingsActivity)
+                Toast.makeText(this@SettingsActivity, "Protection réactualisée.", Toast.LENGTH_SHORT).show()
+                render()
+            })
             addView(label(agoLabel("Dernière notification WhatsApp reçue", Prefs.lastNotifSeen(this@SettingsActivity)), 12f, Pal.MUTED).apply {
                 setPadding(0, dp(10), 0, 0)
             })

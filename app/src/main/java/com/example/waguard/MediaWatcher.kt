@@ -28,11 +28,8 @@ class MediaWatcher(private val ctx: Context) {
 
     @Synchronized
     fun start() {
-        // Lire le dernier scan AVANT d'arrêter les anciens observateurs :
-        // stop() ne doit jamais avancer ce curseur, sinon les médias créés
-        // pendant une coupure seraient considérés comme déjà traités.
-        val last = prefs.getLong("last", System.currentTimeMillis())
         stop()
+        val last = prefs.getLong("last", System.currentTimeMillis())
         exec.execute {
             for (r in roots) walk(File(r), last)
             prefs.edit().putLong("last", System.currentTimeMillis()).apply()
@@ -43,6 +40,7 @@ class MediaWatcher(private val ctx: Context) {
     fun stop() {
         observers.values.forEach { it.stopWatching() }
         observers.clear()
+        prefs.edit().putLong("last", System.currentTimeMillis()).apply()
     }
 
     private fun isRoot(f: File?): Boolean = f != null && roots.contains(f.absolutePath)

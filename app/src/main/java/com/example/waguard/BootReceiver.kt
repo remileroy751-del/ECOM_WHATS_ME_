@@ -8,7 +8,10 @@ import android.content.Intent
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            if (Perms.notif(context) && Perms.files(context)) GuardService.start(context)
+            if (Perms.notif(context) && Perms.files(context)) {
+                Repair.runNow(context)
+                Repair.schedulePeriodic(context)
+            }
         }
     }
 }

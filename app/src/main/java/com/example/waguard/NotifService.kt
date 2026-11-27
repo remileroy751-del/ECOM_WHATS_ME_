@@ -1,10 +1,12 @@
 package com.example.waguard
 
 import android.app.Notification
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.content.ComponentName
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 
@@ -20,52 +22,54 @@ class NotifService : NotificationListenerService() {
     }
 
     private var watcher: MediaWatcher? = null
-    private val recoveryHandler = Handler(Looper.getMainLooper())
-    private val recoveryAttempts = listOf(1_000L, 5_000L, 15_000L)
-
-    private val recoveryRunnable = object : Runnable {
-        override fun run() {
-            if (instance != null) return
-            try {
-                NotificationListenerService.requestRebind(
-                    ComponentName(applicationContext, NotifService::class.java)
-                )
-            } catch (_: Exception) { }
-        }
-    }
+    private var netCallback: ConnectivityManager.NetworkCallback? = null
 
     override fun onListenerConnected() {
         instance = this
-        recoveryHandler.removeCallbacksAndMessages(null)
         startWatcher()
+        Repair.schedulePeriodic(this)
+        registerNetworkWatch()
     }
 
     override fun onListenerDisconnected() {
         watcher?.stop()
+        unregisterNetworkWatch()
         instance = null
-        // Android recommande explicitement requestRebind après une déconnexion
-        // du NotificationListenerService. Plusieurs tentatives couvrent les
-        // redémarrages momentanément retardés par le système.
-        recoveryAttempts.forEach { delay ->
-            recoveryHandler.postDelayed(recoveryRunnable, delay)
+    }
+
+    /** Dès qu'internet revient après une coupure, on relance immédiatement la surveillance
+     * des fichiers, sans attendre l'alarme périodique ni l'intervention de l'utilisateur. */
+    private fun registerNetworkWatch() {
+        if (netCallback != null) return
+        try {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val request = NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build()
+            val cb = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    startWatcher()
+                }
+            }
+            cm.registerNetworkCallback(request, cb)
+            netCallback = cb
+        } catch (_: Exception) {
         }
     }
 
-    @Synchronized
+    private fun unregisterNetworkWatch() {
+        try {
+            netCallback?.let {
+                (getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager).unregisterNetworkCallback(it)
+            }
+        } catch (_: Exception) {
+        }
+        netCallback = null
+    }
+
     fun startWatcher() {
         if (watcher == null) watcher = MediaWatcher(applicationContext)
         watcher?.start()
-    }
-
-    /** Relance l'écoute et la surveillance après une reconnexion ou depuis le bouton Actualiser. */
-    fun refreshProtection() {
-        recoveryHandler.removeCallbacksAndMessages(null)
-        try {
-            NotificationListenerService.requestRebind(
-                ComponentName(applicationContext, NotifService::class.java)
-            )
-        } catch (_: Exception) { }
-        startWatcher()
     }
 
     private fun isDeleted(t: String): Boolean {

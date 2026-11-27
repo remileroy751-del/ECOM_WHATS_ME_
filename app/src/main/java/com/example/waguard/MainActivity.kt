@@ -70,7 +70,7 @@ class MainActivity : Activity() {
                 autoLaunched = 2; launchStep(2); showGate(ok)
             }
             else -> {
-                GuardService.start(this)
+                Repair.schedulePeriodic(this)
                 showHome(batteryMissing = !ok[2])
             }
         }
@@ -279,18 +279,6 @@ class MainActivity : Activity() {
                 label(t("home_hint"), 12f, Pal.MUTED).apply { setPadding(dp(4), dp(18), dp(4), 0) }
             )
         }
-
-        body.addView(
-            button("↻  Actualiser la protection", Pal.WHITE, Pal.DARK, Pal.BORDER, 14f) {
-                GuardService.refresh(this@MainActivity)
-                android.widget.Toast.makeText(
-                    this@MainActivity,
-                    "Actualisation lancée. Vérifiez que l'accès aux notifications WhatsApp est toujours autorisé.",
-                    android.widget.Toast.LENGTH_LONG
-                ).show()
-            },
-            lp(MATCH, WRAP).apply { setMargins(0, dp(18), 0, 0) }
-        )
 
         if (batteryMissing) {
             body.addView(LinearLayout(this).apply {
